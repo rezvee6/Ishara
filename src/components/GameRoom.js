@@ -309,12 +309,27 @@ const GameRoom = () => {
             </form>
           )}
 
-          {revealWinner && (
-            <div>
-              <h3>Killer Revealed!</h3>
-              <p>The killer was: {game.players.find(p => p.uid === Object.keys(game.roles).find(uid => game.roles[uid].role === 'killer')).username}</p>
-            </div>
-          )}
+{revealWinner && (
+  <div>
+    <h3>Killer Revealed!</h3>
+    {/* Find the killer role and safely access the username */}
+    {game && game.roles && game.players ? (
+      <>
+        {Object.entries(game.roles).find(([uid, role]) => role.role === 'killer') ? (
+          <p>
+            The killer was: {
+              game.players.find(p => p.uid === Object.entries(game.roles).find(([uid, role]) => role.role === 'killer')[0])?.username || 'Unknown'
+            }
+          </p>
+        ) : (
+          <p>Killer not found</p>
+        )}
+      </>
+    ) : (
+      <p>Loading...</p>
+    )}
+  </div>
+)}
 
           {gameOver && (
             <button onClick={handleStartNewRound}>Start New Round</button>
