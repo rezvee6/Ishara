@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getDoc, doc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { db, signOutUser } from '../firebaseConfig'; // Ensure proper imports
+import { getAuth ,onAuthStateChanged } from 'firebase/auth';
+import { db, leaveGame, signOutUser } from '../firebaseConfig'; // Ensure proper imports
 
 const GameRoom = () => {
   const { gameId } = useParams();
@@ -14,7 +14,23 @@ const GameRoom = () => {
   const [gameOver, setGameOver] = useState(false);
   const [killerRevealed, setKillerRevealed] = useState(false);
   const [revealWinner, setRevealWinner] = useState(false);
+
   const auth = getAuth();
+
+  useEffect(() => {
+    // Listen for auth state changes
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        console.log('No user is signed in');
+        navigate('/login'); // Optionally redirect to a login page
+      }
+    });
+
+    // Clean up the subscription on component unmount
+    return () => unsubscribeAuth();
+  }, [auth, navigate]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, 'games', gameId), (gameDoc) => {
@@ -58,33 +74,49 @@ const GameRoom = () => {
 
   const handleGuessSubmit = async (e) => {
     e.preventDefault();
-    if (user && guess && game && game.roles) {
-      if (game.roles[user.uid]?.guess) {
-        alert('You have already made a guess!');
-        return;
-      }
-
-      try {
-        const gameRef = doc(db, 'games', gameId);
-        const updatedRoles = { ...game.roles };
-        updatedRoles[user.uid] = { ...updatedRoles[user.uid], guess };
-
-        await updateDoc(gameRef, {
-          roles: updatedRoles
-        });
-
-        // Check if all players have guessed
-        const allPlayersGuessed = Object.values(updatedRoles).every(role => role.guess);
-        if (allPlayersGuessed) {
-          setRevealWinner(true); // Show the reveal winner button
+  
+    if (!user || !guess || !game || !game.roles) {
+      console.error("Missing data for submitting a guess.");
+      return;
+    }
+  
+    const userId = user.uid;
+    
+    // Check if the user has already guessed
+    if (game.roles[userId]?.guess) {
+      alert('You have already made a guess!');
+      return;
+    }
+  
+    try {
+      const gameRef = doc(db, 'games', gameId);
+  
+      // Update only the current user's guess in the roles object
+      const updatedRoles = { 
+        ...game.roles,
+        [userId]: { 
+          ...game.roles[userId], 
+          guess 
         }
-
-        setGuess(''); // Clear the input after submission
-      } catch (error) {
-        console.error('Error submitting guess:', error);
+      };
+  
+      // Update the game document with the new guess
+      await updateDoc(gameRef, {
+        [`roles.${userId}.guess`]: guess
+      });
+  
+      // Check if all players have guessed
+      const allPlayersGuessed = Object.values(updatedRoles).every(role => role.guess);
+      if (allPlayersGuessed) {
+        setRevealWinner(true); // Show the reveal winner button
       }
+  
+      setGuess(''); // Clear the input after submission
+    } catch (error) {
+      console.error('Error submitting guess:', error);
     }
   };
+  
 
   const handleStartNewRound = async () => {
     try {
@@ -259,9 +291,31 @@ const GameRoom = () => {
       }));
 
       console.log('Roles assigned and game started');
+      setGameOver(false);
+      setKillerRevealed(false);
+      setRevealWinner(false);
+
     } catch (error) {
       console.error('Error assigning roles:', error);
     }
+};
+
+const handleLeaveGame = async () => {
+  if (user && gameId) {
+    try {
+      await leaveGame(gameId, user.uid);
+      console.log('User has left the game successfully');
+      // Optionally, redirect the user or update state
+      navigate('/'); // Navigate to a different page or the main screen after leaving
+    } catch (error) {
+      console.error('Error leaving game:', error);
+      // Optionally, show an error message to the user
+      alert('An error occurred while leaving the game. Please try again.');
+    }
+  } else {
+    console.error('User or gameId is missing');
+    // Optionally, show an error message if user or gameId is not available
+  }
 };
 
   return (
@@ -309,19 +363,34 @@ const GameRoom = () => {
             </form>
           )}
 
-          {revealWinner && (
+          {revealWinner && game.players && game.roles && (
             <div>
               <h3>Killer Revealed!</h3>
-              <p>The killer was: {game.players.find(p => p.uid === Object.keys(game.roles).find(uid => game.roles[uid].role === 'killer')).username}</p>
+              {(() => {
+                const killerUid = Object.keys(game.roles).find(uid => game.roles[uid].role === 'killer');
+                const killer = game.players.find(p => p.uid === killerUid);
+
+                return killer ? (
+                  <p>The killer was: {killer.username}</p>
+                ) : (
+                  <p>No killer found or data is still loading...</p>
+                );
+              })()}
             </div>
           )}
+
 
           {gameOver && (
             <button onClick={handleStartNewRound}>Start New Round</button>
           )}
-          
+          <li></li>
+          <li></li>
+          <li></li>
           {gameOver && (
             <button onClick={handleNewGame}>Start New Game</button>
+          )}
+           {gameOver && (
+            <button onClick={handleLeaveGame}>Leave Game</button>
           )}
         </div>
       ) : (

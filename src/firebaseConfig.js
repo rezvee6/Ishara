@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword ,updateProfile } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDocs, query, where, doc,setDoc, getDoc, updateDoc } from "firebase/firestore"; // Import missing functions
+import { getFirestore, collection, addDoc, getDocs, query, where, doc,setDoc, getDoc, updateDoc,deleteField  } from "firebase/firestore"; // Import missing functions
 
 const firebaseConfig = {
   apiKey: "AIzaSyCLig9qWhJzyLGn_Ru9Knflb5rtPOV4ImU",
@@ -202,31 +202,45 @@ export const joinGame = async (gameId) => {
   }
 };
 
-  export const leaveGame = async (gameId, userId) => {
-    try {
-      const gameRef = doc(db, "games", gameId);
-      const gameDoc = await getDoc(gameRef);
-      
-      if (!gameDoc.exists()) {
-        throw new Error('Game not found');
-      }
-      
-      const gameData = gameDoc.data();
-      if (!gameData.players.includes(userId)) {
-        console.log('User is not in the game'); // Debugging line
-        return; // Exit if the user is not in the game
-      }
-      
-      await updateDoc(gameRef, {
-        players: gameData.players.filter(player => player !== userId) // Remove the userId from the players array
-      });
-      
-      console.log('User successfully left the game'); // Debugging line
-    } catch (error) {
-      console.error('Error leaving game:', error);
-      throw error;
+export const leaveGame = async (gameId, userId) => {
+  try {
+    const gameRef = doc(db, "games", gameId);
+    const gameDoc = await getDoc(gameRef);
+
+    if (!gameDoc.exists()) {
+      throw new Error('Game not found');
     }
-  };
+
+    const gameData = gameDoc.data();
+
+    if (!gameData.players.some(player => player.uid === userId)) {
+      console.log('User is not in the game');
+      return;
+    }
+
+    const updatedPlayers = gameData.players.filter(player => player.uid !== userId);
+
+    const updates = {
+      players: updatedPlayers,
+    };
+
+    if (gameData.roles && gameData.roles[userId]) {
+      updates[`roles.${userId}`] = deleteField();
+    }
+
+    if (gameData.points && gameData.points[userId]) {
+      updates[`points.${userId}`] = deleteField();
+    }
+
+    await updateDoc(gameRef, updates);
+
+    console.log('User successfully left the game and their data was removed');
+  } catch (error) {
+    console.error('Error leaving game:', error);
+    throw error;
+  }
+};
+
 
   export const startGame = async (gameId, players) => {
     try {
