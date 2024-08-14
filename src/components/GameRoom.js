@@ -13,6 +13,7 @@ const GameRoom = () => {
   const [guess, setGuess] = useState('');
   const [gameOver, setGameOver] = useState(false);
   const [killerRevealed, setKillerRevealed] = useState(false);
+  const [revealWinner, setRevealWinner] = useState(false);
   const auth = getAuth();
 
   useEffect(() => {
@@ -25,10 +26,10 @@ const GameRoom = () => {
         const allPlayersGuessed = Object.values(gameData.roles || {}).every(role => role.guess);
         if (allPlayersGuessed) {
           setGameOver(true);
-          setKillerRevealed(true);
+          setRevealWinner(true);
         } else {
           setGameOver(false);
-          setKillerRevealed(false);
+          setRevealWinner(false);
         }
       } else {
         console.log('Game not found');
@@ -75,9 +76,7 @@ const GameRoom = () => {
         // Check if all players have guessed
         const allPlayersGuessed = Object.values(updatedRoles).every(role => role.guess);
         if (allPlayersGuessed) {
-          await assignPoints(updatedRoles);
-          setGameOver(true);
-          setKillerRevealed(true);
+          setRevealWinner(true); // Show the reveal winner button
         }
 
         setGuess(''); // Clear the input after submission
@@ -87,64 +86,114 @@ const GameRoom = () => {
     }
   };
 
-  const assignPoints = async (roles) => {
-    let killerUid = null;
-    let updatedRoles = { ...roles };
-
-    // Identify the killer
-    for (const [uid, role] of Object.entries(roles)) {
-      if (role.role === 'killer') {
-        killerUid = uid;
+  const calculatePoints = async () => {
+    if (!game || !game.roles || !game.players) {
+      console.error('Game data, roles, or players are not available');
+      return;
+    }
+  
+    let killerUsername = null;
+  
+    // Identify the killer's username
+    for (const player of game.players) {
+      if (game.roles[player.uid]?.role === 'killer') {
+        killerUsername = player.username;
         break;
       }
     }
-
-    // Assign points
-    for (const [uid, role] of Object.entries(roles)) {
-      if (role.guess === killerUid) {
-        updatedRoles[uid].points = (role.points || 0) + 1; // Award 1 point for correct guess
-      } else {
-        updatedRoles[uid].points = role.points || 0;
-      }
+  
+    if (!killerUsername) {
+      console.error('Killer was not found');
+      return;
     }
-
+  
     try {
+      // Prepare the updates for Firestore
+      const updates = {};
+      for (const [uid, role] of Object.entries(game.roles)) {
+        // Ensure guesses and usernames are compared correctly
+        if (role.guess && role.guess.trim().toLowerCase() === killerUsername.trim().toLowerCase()) {
+          // Increment points if the guess is correct
+          updates[`roles.${uid}.points`] = (role.points || 0) + 1;
+        }
+      }
+  
+      // Update Firestore with the calculated points
       const gameRef = doc(db, 'games', gameId);
-      await updateDoc(gameRef, {
-        roles: updatedRoles
+      await updateDoc(gameRef, updates);
+  
+      // Update local state with the new roles (optional)
+      setGame((prevGame) => {
+        const updatedRoles = { ...prevGame.roles };
+        Object.entries(updates).forEach(([key, value]) => {
+          const uid = key.split('.')[1];
+          if (updatedRoles[uid]) {
+            updatedRoles[uid] = { ...updatedRoles[uid], points: value };
+          }
+        });
+  
+        return {
+          ...prevGame,
+          roles: updatedRoles
+        };
       });
-
-      setGame({ ...game, roles: updatedRoles });
+  
+      console.log('Points calculated and updated');
     } catch (error) {
       console.error('Error updating points:', error);
+    }
+  };
+  
+  
+  
+
+  const handleRevealWinner = async () => {
+    try {
+      console.log("Calculating points");
+      await calculatePoints();
+      setKillerRevealed(true); // Show the killer after calculating points
+    } catch (error) {
+      console.error('Error revealing winner:', error);
     }
   };
 
   const handleStartNewRound = async () => {
     try {
       if (game && game.roles) {
-        // Reset game state for a new round
+        // Preserve points and reset guesses
         const newRoles = Object.fromEntries(
-          Object.entries(game.roles).map(([uid, role]) => [uid, { ...role, guess: '', points: 0 }])
+          Object.entries(game.roles).map(([uid, role]) => [
+            uid,
+            {
+              ...role,
+              guess: '', // Reset guess for the new round
+              // Keep points as they are
+            }
+          ])
         );
-
+  
         const gameRef = doc(db, 'games', gameId);
         await updateDoc(gameRef, {
           roles: newRoles,
           gameOver: false,
-          gameStarted: true // If the game was not started yet, you might want to set this to true
+          // Optionally reset other game state properties as needed
+          // gameStarted: true // Uncomment if you want to ensure the game is marked as started
         });
-
-        setGame({ ...game, roles: newRoles });
+  
+        setGame((prevGame) => ({
+          ...prevGame,
+          roles: newRoles
+        }));
         setGameOver(false);
         setKillerRevealed(false);
+        setRevealWinner(false);
         console.log('New round started');
       }
     } catch (error) {
       console.error('Error starting new round:', error);
     }
   };
-
+  
   const handleSignOut = async () => {
     try {
       await signOutUser();
@@ -166,12 +215,12 @@ const GameRoom = () => {
               <li key={index}>
                 {player.username || 'Unnamed Player'} {player.uid === user.uid ? '(You)' : ''}
                 {game.roles && game.roles[player.uid]?.guess ? ' - guessed' : ''}
-                {gameOver && game.roles[player.uid]?.points !== undefined ? ` - Points: ${game.roles[player.uid].points}` : ''}
+                {game.roles && game.roles[player.uid]?.points !== undefined ? ` - Points: ${game.roles[player.uid].points}` : ''}
               </li>
             ))}
           </ul>
 
-          {!gameOver && (
+          {!gameOver && !revealWinner && (
             <form onSubmit={handleGuessSubmit}>
               <label>
                 Guess the Killer:
@@ -185,6 +234,10 @@ const GameRoom = () => {
             </form>
           )}
 
+          {revealWinner && !killerRevealed && (
+            <button onClick={handleRevealWinner}>Reveal Winner</button>
+          )}
+
           {killerRevealed && (
             <div>
               <h3>Killer Revealed!</h3>
@@ -192,7 +245,6 @@ const GameRoom = () => {
             </div>
           )}
 
-          {/* Show button to start a new round if the game is over */}
           {gameOver && (
             <button onClick={handleStartNewRound}>Start New Round</button>
           )}
