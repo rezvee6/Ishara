@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword ,updateProfile } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDocs, query, where, doc,setDoc, getDoc, updateDoc,deleteField  } from "firebase/firestore"; // Import missing functions
+import { getFirestore, collection, addDoc, getDocs, query, where, doc,setDoc, getDoc, updateDoc,deleteField, deleteDoc  } from "firebase/firestore"; // Import missing functions
 
 const firebaseConfig = {
   apiKey: "AIzaSyCLig9qWhJzyLGn_Ru9Knflb5rtPOV4ImU",
@@ -263,6 +263,17 @@ export const leaveGame = async (gameId, userId) => {
       console.log('Game started and roles assigned:', roles);
     } catch (error) {
       console.error('Error starting the game:', error);
+      throw error;
+    }
+  };
+
+  export const deleteGame = async (gameId) => {
+    try {
+      const gameRef = doc(db, 'games', gameId);
+      await deleteDoc(gameRef);
+      console.log('Game deleted successfully');
+    } catch (error) {
+      console.error('Error deleting game:', error);
       throw error;
     }
   };

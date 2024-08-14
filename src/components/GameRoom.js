@@ -250,6 +250,7 @@ const GameRoom = () => {
   const handleSignOut = async () => {
     try {
       await signOutUser();
+      await handleLeaveGame();
       navigate('/'); //
 
       
@@ -320,8 +321,10 @@ const handleLeaveGame = async () => {
 
   return (
     <div>
-      <h1>Game Room</h1>
+      <h1>Game Room: {game ? game.name : 'Loading...'}</h1>
       <button onClick={handleSignOut}>Sign Out</button>
+      <button onClick={handleLeaveGame}>Home</button> {/* Home button */}
+
       <h2>Game Status:</h2>
 {game ? (
   <div>

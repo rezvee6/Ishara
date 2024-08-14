@@ -1,7 +1,6 @@
-// components/Home.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signOutUser, getAvailableGames, joinGame } from '../firebaseConfig';
+import { signOutUser, getAvailableGames, joinGame, deleteGame } from '../firebaseConfig';
 import { getAuth } from 'firebase/auth';
 
 const Home = () => {
@@ -11,7 +10,6 @@ const Home = () => {
   const auth = getAuth();
 
   useEffect(() => {
-    // Check if user is logged in
     const currentUser = auth.currentUser;
     setUser(currentUser);
 
@@ -55,6 +53,18 @@ const Home = () => {
     }
   };
 
+  const handleDeleteGame = async (gameId) => {
+    if (window.confirm('Are you sure you want to delete this game room?')) {
+      try {
+        await deleteGame(gameId);
+        setGames((prevGames) => prevGames.filter((game) => game.id !== gameId));
+      } catch (error) {
+        console.error('Error deleting game:', error);
+        alert('There was an error deleting the game. Please try again.');
+      }
+    }
+  };
+
   return (
     <div>
       <h1>Welcome to the Home Page</h1>
@@ -67,6 +77,7 @@ const Home = () => {
             <li key={game.id}>
               <span>{game.name}</span>
               <button onClick={() => handleJoinGame(game.id)}>Join</button>
+              <button onClick={() => handleDeleteGame(game.id)}>Delete</button>
             </li>
           ))
         ) : (
