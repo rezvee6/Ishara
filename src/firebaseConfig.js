@@ -156,7 +156,8 @@ export const joinGameRoom = async (gameRoomId, user) => {
       players: arrayUnion({
         displayName: user.displayName || user.email,
         points: 0,
-        role: ''
+        role: '',
+        joinedGame: "true",
       })
     });
     console.log(`User ${user.displayName || user.email} joined game room with ID ${gameRoomId} successfully.`);

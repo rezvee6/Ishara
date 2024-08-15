@@ -3,32 +3,37 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOutUser, joinGame, createGameRoom, subscribeToGameRooms ,deleteGameRoom, joinGameRoom} from '../firebaseConfig'; // Assuming createGameRoom is defined in firebaseConfig
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import useCheckUserInGameRoom from './CheckUserInGameRoom'; // Import the custom hook
 
 const Home = () => {
   const [games, setGames] = useState([]);
-  const [user, setUser] = useState(null);
   const [newGameRoomName, setNewGameRoomName] = useState('');
-  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const db = getFirestore();
   const auth = getAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      } else {
-        navigate('/signin');
-      }
+    const fetchGames = async () => {
+      const gamesCollection = collection(db, 'gameRooms');
+      const gamesSnapshot = await getDocs(gamesCollection);
+      const gamesList = gamesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setGames(gamesList);
+    };
+
+    fetchGames();
+  }, [db]);
+
+  useCheckUserInGameRoom(); // Call the custom hook here
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUser(user);
     });
 
-    // Set up real-time listener for game rooms
-    const unsubscribeGameRooms = subscribeToGameRooms(setGames);
-
-    return () => {
-      unsubscribeAuth();
-      unsubscribeGameRooms();
-    };
-  }, [auth, navigate]);
-
+    return () => unsubscribe();
+  }, [auth]);
   const handleSignOut = async () => {
     try {
       await signOutUser();
@@ -79,7 +84,7 @@ const Home = () => {
         <ul>
           {games.map((game, index) => (
             <li key={index}>
-              {game.name} (Created by: {game.createdByUserName})
+              {game.name}
               {game.createdByUserName === (user?.displayName || user?.email) && (
                 <button onClick={() => handleDeleteGameRoom(game.id)}>Delete</button>
               )}
