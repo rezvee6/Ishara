@@ -1,7 +1,7 @@
 // components/Home.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signOutUser, joinGame, createGameRoom, fetchGameRooms } from '../firebaseConfig'; // Assuming createGameRoom is defined in firebaseConfig
+import { signOutUser, joinGame, createGameRoom, subscribeToGameRooms ,deleteGameRoom} from '../firebaseConfig'; // Assuming createGameRoom is defined in firebaseConfig
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const Home = () => {
@@ -12,17 +12,21 @@ const Home = () => {
   const auth = getAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        // Fetch game rooms from your backend or database here
-        fetchGameRooms().then(setGames).catch(console.error);
       } else {
         navigate('/signin');
       }
     });
 
-    return () => unsubscribe();
+    // Set up real-time listener for game rooms
+    const unsubscribeGameRooms = subscribeToGameRooms(setGames);
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeGameRooms();
+    };
   }, [auth, navigate]);
 
   const handleSignOut = async () => {
@@ -44,6 +48,15 @@ const Home = () => {
     }
   };
 
+  const handleDeleteGameRoom = async (gameRoomId) => {
+    try {
+      await deleteGameRoom(gameRoomId);
+      setGames(games.filter(game => game.id !== gameRoomId));
+    } catch (error) {
+      console.error('Error deleting game room:', error);
+    }
+  };
+
   return (
     <div>
       <h1>Welcome to the Home Page</h1>
@@ -56,7 +69,12 @@ const Home = () => {
       ) : (
         <ul>
           {games.map((game, index) => (
-            <li key={index}>{game.name} (Created by: {game.createdByUserName})</li>
+            <li key={index}>
+              {game.name} (Created by: {game.createdByUserName})
+              {game.createdByUserName === (user?.displayName || user?.email) && (
+                <button onClick={() => handleDeleteGameRoom(game.id)}>Delete</button>
+              )}
+            </li>
           ))}
         </ul>
       )}

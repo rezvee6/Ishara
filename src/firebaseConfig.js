@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, GoogleAuthProvider,connectAuthEmulator, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword ,updateProfile } from "firebase/auth";
-import { getFirestore,connectFirestoreEmulator, collection, addDoc, getDocs, query, where, doc,setDoc, getDoc, updateDoc } from "firebase/firestore"; // Import missing functions
+import { getFirestore,connectFirestoreEmulator, collection, addDoc, getDocs, deleteDoc, where, doc,setDoc, onSnapshot } from "firebase/firestore"; // Import missing functions
 
 const firebaseConfig = {
   apiKey: "AIzaSyCLig9qWhJzyLGn_Ru9Knflb5rtPOV4ImU",
@@ -123,6 +123,28 @@ export const fetchGameRooms = async () => {
     return gameRooms;
   } catch (error) {
     console.error('Error fetching game rooms:', error);
+    throw error;
+  }
+};
+
+
+export const subscribeToGameRooms = (callback) => {
+  return onSnapshot(collection(db, 'gameRooms'), (snapshot) => {
+    const gameRooms = [];
+    snapshot.forEach((doc) => {
+      gameRooms.push({ id: doc.id, ...doc.data() });
+    });
+    callback(gameRooms);
+  });
+};
+
+export const deleteGameRoom = async (gameRoomId) => {
+  try {
+    const gameRoomRef = doc(db, 'gameRooms', gameRoomId);
+    await deleteDoc(gameRoomRef);
+    console.log(`Game room with ID ${gameRoomId} deleted successfully.`);
+  } catch (error) {
+    console.error('Error deleting game room:', error);
     throw error;
   }
 };
