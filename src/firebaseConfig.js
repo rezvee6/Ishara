@@ -202,31 +202,46 @@ export const joinGame = async (gameId) => {
   }
 };
 
-  export const leaveGame = async (gameId, userId) => {
-    try {
-      const gameRef = doc(db, "games", gameId);
-      const gameDoc = await getDoc(gameRef);
-      
-      if (!gameDoc.exists()) {
-        throw new Error('Game not found');
-      }
-      
-      const gameData = gameDoc.data();
-      if (!gameData.players.includes(userId)) {
-        console.log('User is not in the game'); // Debugging line
-        return; // Exit if the user is not in the game
-      }
-      
-      await updateDoc(gameRef, {
-        players: gameData.players.filter(player => player !== userId) // Remove the userId from the players array
-      });
-      
-      console.log('User successfully left the game'); // Debugging line
-    } catch (error) {
-      console.error('Error leaving game:', error);
-      throw error;
+export const leaveGame = async (gameId, userId) => {
+  try {
+    const gameRef = doc(db, "games", gameId);
+    const gameDoc = await getDoc(gameRef);
+    
+    if (!gameDoc.exists()) {
+      throw new Error('Game not found');
     }
-  };
+    
+    const gameData = gameDoc.data();
+    console.log('Current game data:', gameData); // Debugging line
+    
+    if (!gameData.players.some(player => player.uid === userId)) {
+      console.log('User is not in the game'); // Debugging line
+      return; // Exit if the user is not in the game
+    }
+    
+    const updatedPlayers = gameData.players.filter(player => player.uid !== userId);
+    const updatedRoles = { ...gameData.roles };
+    delete updatedRoles[userId]; // Remove the user's role
+    
+    console.log('Updated players list:', updatedPlayers); // Debugging line
+    console.log('Updated roles:', updatedRoles); // Debugging line
+    
+    await updateDoc(gameRef, {
+      players: updatedPlayers,
+      roles: updatedRoles // Remove the user's role from the roles object
+    });
+    
+    // Fetch the document again to verify the update
+    const updatedGameDoc = await getDoc(gameRef);
+    const updatedGameData = updatedGameDoc.data();
+    console.log('Updated game data:', updatedGameData); // Debugging line
+    
+    console.log('User successfully left the game'); // Debugging line
+  } catch (error) {
+    console.error('Error leaving game:', error);
+    throw error;
+  }
+};
 
   export const startGame = async (gameId, players) => {
     try {

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getDoc, doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { db, signOutUser } from '../firebaseConfig'; // Ensure proper imports
+import { db, signOutUser, leaveGame } from '../firebaseConfig'; // Ensure proper imports
 
 const GameRoom = () => {
   const { gameId } = useParams();
@@ -264,10 +264,27 @@ const GameRoom = () => {
     }
 };
 
+const handleLeaveGame = async () => {
+  if (!user) {
+    console.error('User data is not available');
+    return;
+  }
+
+  try {
+    await leaveGame(gameId, user.uid);
+    // Navigate the user away from the game room
+    navigate('/home'); // Adjust the path as necessary
+  } catch (error) {
+    console.error('Error leaving the game:', error);
+  }
+};
+
+
   return (
     <div>
       <h1>Game Room</h1>
       <button onClick={handleSignOut}>Sign Out</button>
+      <button onClick={handleLeaveGame}>Leave Game</button>
       <h2>Game Status:</h2>
 {game ? (
   <div>
