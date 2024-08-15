@@ -1,7 +1,7 @@
 // components/Home.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signOutUser, joinGame, createGameRoom, subscribeToGameRooms ,deleteGameRoom} from '../firebaseConfig'; // Assuming createGameRoom is defined in firebaseConfig
+import { signOutUser, joinGame, createGameRoom, subscribeToGameRooms ,deleteGameRoom, joinGameRoom} from '../firebaseConfig'; // Assuming createGameRoom is defined in firebaseConfig
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const Home = () => {
@@ -57,6 +57,15 @@ const Home = () => {
     }
   };
 
+  const handleJoinGameRoom = async (gameRoomId) => {
+    try {
+      await joinGameRoom(gameRoomId, user);
+      navigate(`/game/${gameRoomId}`); // Navigate to the game page
+    } catch (error) {
+      console.error('Error joining game room:', error);
+    }
+  };
+
   return (
     <div>
       <h1>Welcome to the Home Page</h1>
@@ -74,6 +83,7 @@ const Home = () => {
               {game.createdByUserName === (user?.displayName || user?.email) && (
                 <button onClick={() => handleDeleteGameRoom(game.id)}>Delete</button>
               )}
+              <button onClick={() => handleJoinGameRoom(game.id)}>Join</button>
             </li>
           ))}
         </ul>

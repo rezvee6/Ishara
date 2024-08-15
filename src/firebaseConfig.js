@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, GoogleAuthProvider,connectAuthEmulator, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword ,updateProfile } from "firebase/auth";
-import { getFirestore,connectFirestoreEmulator, collection, addDoc, getDocs, deleteDoc, where, doc,setDoc, onSnapshot } from "firebase/firestore"; // Import missing functions
+import { getFirestore,connectFirestoreEmulator, collection, addDoc, getDocs, getDoc, deleteDoc, updateDoc, doc,setDoc, onSnapshot, arrayUnion , arrayRemove} from "firebase/firestore"; // Import missing functions
 
 const firebaseConfig = {
   apiKey: "AIzaSyCLig9qWhJzyLGn_Ru9Knflb5rtPOV4ImU",
@@ -148,5 +148,40 @@ export const deleteGameRoom = async (gameRoomId) => {
     throw error;
   }
 };
-  // Export Firestore and Auth
-  export { db, auth };
+
+export const joinGameRoom = async (gameRoomId, user) => {
+  try {
+    const gameRoomRef = doc(db, 'gameRooms', gameRoomId);
+    await updateDoc(gameRoomRef, {
+      players: arrayUnion({
+        displayName: user.displayName || user.email,
+        points: 0,
+        role: ''
+      })
+    });
+    console.log(`User ${user.displayName || user.email} joined game room with ID ${gameRoomId} successfully.`);
+  } catch (error) {
+    console.error('Error joining game room:', error);
+    throw error;
+  }
+};
+
+
+// Function to remove a player from a game room by displayName
+export const leaveGameRoom = async (gameRoomId, displayName) => {
+  try {
+    const gameRoomRef = doc(db, 'gameRooms', gameRoomId);
+    const gameRoomSnap = await getDoc(gameRoomRef);
+    if (gameRoomSnap.exists()) {
+      const gameRoomData = gameRoomSnap.data();
+      const updatedPlayers = gameRoomData.players.filter(player => player.displayName !== displayName);
+      await updateDoc(gameRoomRef, { players: updatedPlayers });
+    } else {
+      console.log('No such game room!');
+    }
+  } catch (error) {
+    console.error('Error leaving game room:', error);
+  }
+};
+
+export { auth, db, provider };
