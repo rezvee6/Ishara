@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword ,updateProfile } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDocs, query, where, doc,setDoc, getDoc, updateDoc } from "firebase/firestore"; // Import missing functions
+import { getAuth, signOut, GoogleAuthProvider,connectAuthEmulator, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword ,updateProfile } from "firebase/auth";
+import { getFirestore,connectFirestoreEmulator, collection, addDoc, getDocs, getDoc, deleteDoc, updateDoc, doc,setDoc, onSnapshot, arrayUnion , arrayRemove} from "firebase/firestore"; // Import missing functions
 
 const firebaseConfig = {
   apiKey: "AIzaSyCLig9qWhJzyLGn_Ru9Knflb5rtPOV4ImU",
@@ -11,11 +11,21 @@ const firebaseConfig = {
   appId: "1:877815674954:web:9214186ffc151c10858eb3",
   measurementId: "G-CZ5QLH133T"
 };
+
+const provider = new GoogleAuthProvider();
+
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+// Initialize Firestore
+const db = getFirestore(app);
+
 const auth = getAuth(app);
-const db = getFirestore(app); // Initialize Firestore
-const provider = new GoogleAuthProvider();
+
+
+if (window.location.hostname === 'localhost') {
+  connectFirestoreEmulator(db, 'localhost', 8080);
+}
 
 // Google Sign-In
 // firebaseConfig.js
@@ -83,200 +93,96 @@ export const signOutUser = () => {
       });
   };
 
-  export const createGame = async (gameName) => {
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-  
-      if (!user) {
-        throw new Error("User must be signed in to create a game.");
-      }
-  
-      // Default username to 'Anonymous' if displayName is not set
-      const username = user.displayName || 'Anonymous';
-  
-      // Create a new game document in Firestore
-      const docRef = await addDoc(collection(db, 'games'), {
-        name: gameName,
-        players: [{
-          uid: user.uid,
-          username: username,
-          role: '' // Placeholder for role assignment later
-        }],
-        createdAt: new Date(),
-        gameStarted: false // Add a flag to indicate if the game has started
-      });
-  
-      return docRef.id; // Return the game ID
-    } catch (error) {
-      console.error("Error creating game:", error);
-      throw error;
-    }
-  };
-
-  
-  // Function to get available games
-  export const getAvailableGames = async () => {
-    try {
-      const q = query(collection(db, "games"));
-      const querySnapshot = await getDocs(q);
-      const games = [];
-      querySnapshot.forEach((doc) => {
-        games.push({ id: doc.id, ...doc.data() });
-      });
-      return games;
-    } catch (error) {
-      console.error("Error getting documents: ", error);
-      throw error;
-    }
-  };
-  
-  // Function to join a game
-// firebaseConfig.js
-export const joinGame = async (gameId) => {
+export const createGameRoom = async (name) => {
   try {
-    const auth = getAuth();
     const user = auth.currentUser;
+    if (!user) throw new Error('User not authenticated');
 
-    // Check if the user is authenticated
-    if (!user) {
-      throw new Error("User must be signed in");
-    }
-
-    // Ensure user ID is available
-    if (!user.uid) {
-      throw new Error("User ID is missing");
-    }
-
-    const gameRef = doc(db, 'games', gameId);
-    const gameDoc = await getDoc(gameRef);
-
-    // Check if the game document exists
-    if (!gameDoc.exists()) {
-      throw new Error("Game not found");
-    }
-
-    const gameData = gameDoc.data();
-
-    // Ensure `players` field is an array
-    if (!Array.isArray(gameData.players)) {
-      throw new Error("Players field is not an array");
-    }
-
-    // Check if the user is already in the game
-    const userAlreadyInGame = gameData.players.some(player => player.uid === user.uid);
-    if (userAlreadyInGame) {
-      console.log("User is already in the game");
-      return; // User is already in the game
-    }
-
-    // Check if the game is full
-    if (gameData.players.length >= 10) {
-      throw new Error("Game is full");
-    }
-
-    // Add the user to the game
-    const newPlayer = {
-      uid: user.uid,
-      username: user.displayName || 'Anonymous',
-      role: '' // Placeholder for role assignment later
+    const newGameRoom = {
+      name: name || `Game Room ${Date.now()}`, // Use provided name or generate a default one
+      createdByUserName: user.displayName,
+      createdAt: new Date(),
+      players: [], // Initialize with an empty list of players
     };
 
-    // Ensure `players` field is updated correctly
-    const updatedPlayers = [...gameData.players, newPlayer];
-
-    // Debugging: Log the updated players array and game data
-    console.log('Game Data:', gameData);
-    console.log('Updated Players Array:', updatedPlayers);
-
-    // Update Firestore document
-    await updateDoc(gameRef, {
-      players: updatedPlayers
-    });
-
-    console.log("User added to game");
-
+    const docRef = await addDoc(collection(db, 'gameRooms'), newGameRoom);
+    return { id: docRef.id, ...newGameRoom };
   } catch (error) {
-    console.error("Error joining game:", error);
-    throw error; // Rethrow to handle further up the call stack if needed
+    console.error('Error creating game room:', error);
+    throw error;
+  }
+};
+  
+export const fetchGameRooms = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'gameRooms'));
+    const gameRooms = [];
+    querySnapshot.forEach((doc) => {
+      gameRooms.push({ id: doc.id, ...doc.data() });
+    });
+    return gameRooms;
+  } catch (error) {
+    console.error('Error fetching game rooms:', error);
+    throw error;
   }
 };
 
-  export const leaveGame = async (gameId, userId) => {
-    try {
-      const gameRef = doc(db, "games", gameId);
-      const gameDoc = await getDoc(gameRef);
-      
-      if (!gameDoc.exists()) {
-        throw new Error('Game not found');
-      }
-      
-      const gameData = gameDoc.data();
-      if (!gameData.players.includes(userId)) {
-        console.log('User is not in the game'); // Debugging line
-        return; // Exit if the user is not in the game
-      }
-      
-      await updateDoc(gameRef, {
-        players: gameData.players.filter(player => player !== userId) // Remove the userId from the players array
-      });
-      
-      console.log('User successfully left the game'); // Debugging line
-    } catch (error) {
-      console.error('Error leaving game:', error);
-      throw error;
-    }
-  };
 
-  export const startGame = async (gameId, players) => {
-    try {
-      // Shuffle players array
-      const shuffledPlayers = players.sort(() => Math.random() - 0.5);
-  
-      // Assign roles
-      const roles = shuffledPlayers.map((player, index) => ({
-        ...player,
-        role: index === 0 ? 'killer' : 'player' // First player is the killer, others are players
-      }));
-  
-      // Update the game document with roles
-      const gameRef = doc(db, 'games', gameId);
-      await updateDoc(gameRef, {
-        status: 'started', // Indicate the game has started
-        roles: roles
-      });
-  
-      console.log('Game started and roles assigned:', roles);
-    } catch (error) {
-      console.error('Error starting the game:', error);
-      throw error;
-    }
-  };
+export const subscribeToGameRooms = (callback) => {
+  return onSnapshot(collection(db, 'gameRooms'), (snapshot) => {
+    const gameRooms = [];
+    snapshot.forEach((doc) => {
+      gameRooms.push({ id: doc.id, ...doc.data() });
+    });
+    callback(gameRooms);
+  });
+};
 
-  export const SubmitGuess = async (gameId, userId, guess) => {
-    try {
-      const gameRef = doc(db, 'games', gameId);
-      const gameDoc = await getDoc(gameRef);
-  
-      if (gameDoc.exists()) {
-        const gameData = gameDoc.data();
-  
-        // Update the guess for the current user
-        const updatedRoles = { ...gameData.roles };
-        updatedRoles[userId].guess = guess;
-  
-        await updateDoc(gameRef, {
-          roles: updatedRoles
-        });
-  
-        console.log('Guess submitted successfully');
-      } else {
-        console.error('Game not found');
-      }
-    } catch (error) {
-      console.error('Error submitting guess:', error);
+export const deleteGameRoom = async (gameRoomId) => {
+  try {
+    const gameRoomRef = doc(db, 'gameRooms', gameRoomId);
+    await deleteDoc(gameRoomRef);
+    console.log(`Game room with ID ${gameRoomId} deleted successfully.`);
+  } catch (error) {
+    console.error('Error deleting game room:', error);
+    throw error;
+  }
+};
+
+export const joinGameRoom = async (gameRoomId, user) => {
+  try {
+    const gameRoomRef = doc(db, 'gameRooms', gameRoomId);
+    await updateDoc(gameRoomRef, {
+      players: arrayUnion({
+        displayName: user.displayName || user.email,
+        points: 0,
+        role: '',
+        joinedGame: "true",
+      })
+    });
+    console.log(`User ${user.displayName || user.email} joined game room with ID ${gameRoomId} successfully.`);
+  } catch (error) {
+    console.error('Error joining game room:', error);
+    throw error;
+  }
+};
+
+
+// Function to remove a player from a game room by displayName
+export const leaveGameRoom = async (gameRoomId, displayName) => {
+  try {
+    const gameRoomRef = doc(db, 'gameRooms', gameRoomId);
+    const gameRoomSnap = await getDoc(gameRoomRef);
+    if (gameRoomSnap.exists()) {
+      const gameRoomData = gameRoomSnap.data();
+      const updatedPlayers = gameRoomData.players.filter(player => player.displayName !== displayName);
+      await updateDoc(gameRoomRef, { players: updatedPlayers });
+    } else {
+      console.log('No such game room!');
     }
-  };
-  
-  // Export Firestore and Auth
-  export { db, auth };
+  } catch (error) {
+    console.error('Error leaving game room:', error);
+  }
+};
+
+export { auth, db, provider };
