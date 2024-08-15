@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword ,updateProfile } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDocs, query, where, doc,setDoc, getDoc, updateDoc } from "firebase/firestore"; // Import missing functions
+import { getAuth, signOut, GoogleAuthProvider,connectAuthEmulator, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword ,updateProfile } from "firebase/auth";
+import { getFirestore,connectFirestoreEmulator, collection, addDoc, getDocs, query, where, doc,setDoc, getDoc, updateDoc } from "firebase/firestore"; // Import missing functions
 
 const firebaseConfig = {
   apiKey: "AIzaSyCLig9qWhJzyLGn_Ru9Knflb5rtPOV4ImU",
@@ -11,11 +11,21 @@ const firebaseConfig = {
   appId: "1:877815674954:web:9214186ffc151c10858eb3",
   measurementId: "G-CZ5QLH133T"
 };
+
+const provider = new GoogleAuthProvider();
+
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+// Initialize Firestore
+const db = getFirestore(app);
+
 const auth = getAuth(app);
-const db = getFirestore(app); // Initialize Firestore
-const provider = new GoogleAuthProvider();
+
+
+if (window.location.hostname === 'localhost') {
+  connectFirestoreEmulator(db, 'localhost', 8080);
+}
 
 // Google Sign-In
 // firebaseConfig.js

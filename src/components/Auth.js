@@ -1,3 +1,4 @@
+// components/Auth.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithGoogle, auth } from '../firebaseConfig';
@@ -6,7 +7,7 @@ import SignUp from './SignUp';
 import SignIn from './SignIn';
 
 const Auth = () => {
-  const [isSignUp, setIsSignUp] = useState(true);
+  const [isSignUp, setIsSignUp] = useState(false); // Default to Sign In
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,9 +32,10 @@ const Auth = () => {
 
   return (
     <div>
-      <h2>{isSignUp ? 'Sign Up' : 'Sign In'}</h2>
+      <h1>Welcome</h1>
       <button onClick={handleGoogleSignIn}>Sign in with Google</button>
       <hr />
+      {/* <h2>{isSignUp ? 'Sign Up' : 'Sign In'}</h2> */}
       <button onClick={() => setIsSignUp(!isSignUp)}>
         Switch to {isSignUp ? 'Sign In' : 'Sign Up'}
       </button>
