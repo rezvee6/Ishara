@@ -1,8 +1,8 @@
 // components/Home.js
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { signOutUser, getAvailableGames, joinGame } from '../firebaseConfig';
-import { getAuth } from 'firebase/auth';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { signOutUser, getAvailableGames, joinGame } from "../firebaseConfig";
+import { getAuth } from "firebase/auth";
 
 const Home = () => {
   const [games, setGames] = useState([]);
@@ -16,15 +16,15 @@ const Home = () => {
     setUser(currentUser);
 
     if (!currentUser) {
-      navigate('/'); // Redirect to login if not authenticated
+      navigate("/"); // Redirect to login if not authenticated
     } else {
-      console.log('User is signed in:', currentUser); // Debugging line
+      console.log("User is signed in:", currentUser); // Debugging line
       const fetchGames = async () => {
         try {
           const availableGames = await getAvailableGames();
           setGames(availableGames);
         } catch (error) {
-          console.error('Error fetching games:', error);
+          console.error("Error fetching games:", error);
         }
       };
 
@@ -35,14 +35,14 @@ const Home = () => {
   const handleSignOut = async () => {
     try {
       await signOutUser();
-      navigate('/'); // Redirect to the Auth page after signing out
+      navigate("/"); // Redirect to the Auth page after signing out
     } catch (error) {
-      console.error('Error during sign out:', error);
+      console.error("Error during sign out:", error);
     }
   };
 
   const handleCreateGame = () => {
-    navigate('/create-game'); // Redirect to the Create Game page
+    navigate("/create-game"); // Redirect to the Create Game page
   };
 
   const handleJoinGame = async (gameId) => {
@@ -50,8 +50,8 @@ const Home = () => {
       await joinGame(gameId); // Add the user to the game
       navigate(`/game-room/${gameId}`); // Redirect to the Game Room page
     } catch (error) {
-      console.error('Error joining game:', error);
-      alert('There was an error joining the game. Please try again.');
+      console.error("Error joining game:", error);
+      alert("There was an error joining the game. Please try again.");
     }
   };
 

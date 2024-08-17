@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { signUpWithEmail } from '../firebaseConfig'; // Ensure the function is imported
+import React, { useState } from "react";
+import { signUpWithEmail } from "../firebaseConfig"; // Ensure the function is imported
 
 const SignUp = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [error, setError] = useState("");
 
   const handleSignUp = async (event) => {
     event.preventDefault();
@@ -13,9 +13,9 @@ const SignUp = () => {
       const user = await signUpWithEmail(email, password, username);
 
       // Optional: Redirect or show success message
-      console.log('User signed up:', user);
+      console.log("User signed up:", user);
     } catch (error) {
-      console.error('Error signing up:', error);
+      console.error("Error signing up:", error);
       setError(error.message);
     }
   };
