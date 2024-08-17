@@ -1,11 +1,11 @@
 // src/components/CreateGame.js
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createGame } from '../firebaseConfig'; // Import your createGame function
-import { getAuth } from 'firebase/auth';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { createGame } from "../firebaseConfig"; // Import your createGame function
+import { getAuth } from "firebase/auth";
 
 const CreateGame = () => {
-  const [gameName, setGameName] = useState('');
+  const [gameName, setGameName] = useState("");
   const navigate = useNavigate();
 
   const handleGameNameChange = (event) => {
@@ -29,8 +29,8 @@ const CreateGame = () => {
       // Navigate to the game room
       navigate(`/game-room/${gameId}`);
     } catch (error) {
-      console.error('Error creating game:', error);
-      alert('Error creating game. Please try again.');
+      console.error("Error creating game:", error);
+      alert("Error creating game. Please try again.");
     }
   };
 
